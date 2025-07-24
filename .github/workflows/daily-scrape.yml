@@ -1,0 +1,50 @@
+name: Daily WSB Stock Scraper
+
+on:
+  schedule:
+    # Runs at 12:30 UTC (9:30 AM Buenos Aires time)
+    - cron: '30 12 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub UI
+
+jobs:
+  scrape-and-email:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests beautifulsoup4 praw pandas
+        pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2
+        pip install python-dotenv pytz
+    
+    - name: Create Google credentials file
+      run: |
+        echo '${{ secrets.GOOGLE_CREDENTIALS_JSON }}' > google_credentials.json
+    
+    - name: Run WSB Scraper
+      env:
+        REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+        REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+        REDDIT_USERNAME: ${{ secrets.REDDIT_USERNAME }}
+        REDDIT_PASSWORD: ${{ secrets.REDDIT_PASSWORD }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        GMAIL_CREDENTIALS_FILE: google_credentials.json
+        ALPHA_VANTAGE_API_KEY: ${{ secrets.ALPHA_VANTAGE_API_KEY }}
+      run: |
+        python wsb_scraper_github.py
+    
+    - name: Cleanup credentials
+      if: always()
+      run: |
+        rm -f google_credentials.json
+        rm -f token.json
